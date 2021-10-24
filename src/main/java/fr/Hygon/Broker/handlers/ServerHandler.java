@@ -6,26 +6,48 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import fr.Hygon.Broker.packets.Packet;
 import fr.Hygon.Broker.packets.Packets;
-
 import java.util.UUID;
 
 public class ServerHandler extends ChannelInboundHandlerAdapter {
+    private ByteBuf packetBuf;
+
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        ByteBuf inBuffer = (ByteBuf) msg;
+    public void handlerAdded(ChannelHandlerContext ctx) {
+        packetBuf = ctx.alloc().buffer(4);
+    }
 
-        int packetID = inBuffer.readInt();
-        Packet packet = Packets.getPacketByID(packetID);
-        if(packet == null) {
-            System.err.println("Received unknown packet with id " + packetID);
-            return;
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) {
+        packetBuf.release();
+        packetBuf = null;
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object message) {
+        ByteBuf inBuffer = (ByteBuf) message;
+        packetBuf.writeBytes(inBuffer);
+        inBuffer.release();
+
+        if(packetBuf.readableBytes() >= 4) {
+            int packetSize = packetBuf.readInt();
+            if(packetBuf.readableBytes() >= packetSize) {
+                int packetID = packetBuf.readInt();
+                Packet packet = Packets.getPacketByID(packetID);
+                if(packet == null) {
+                    System.err.println("Received unknown packet with id " + packetID);
+                    return;
+                }
+
+                long mostSignificantBits = packetBuf.readLong();
+                long leastSignificantBits = packetBuf.readLong();
+
+                packet.read(ctx, new UUID(mostSignificantBits, leastSignificantBits), packetBuf);
+                packetBuf = ctx.alloc().buffer(4);
+            } else {
+                packetBuf.resetReaderIndex();
+                packetBuf.resetWriterIndex();
+            }
         }
-
-        long mostSignificantBits = inBuffer.readLong();
-        long leastSignificantBits = inBuffer.readLong();
-
-        UUID clientUUID = new UUID(mostSignificantBits, leastSignificantBits);
-        packet.read(ctx, new UUID(mostSignificantBits, leastSignificantBits), inBuffer);
     }
 
     @Override

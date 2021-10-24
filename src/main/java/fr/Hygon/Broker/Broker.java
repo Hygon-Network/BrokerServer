@@ -17,10 +17,9 @@ public class Broker {
     private final int port;
 
     public static void main(String[] args) throws Exception {
-        String host = "localhost";
         int port = 9800;
 
-        for(int array = 0; array < args.length + 1; array++) {
+        for(int array = 0; array < args.length; array++) {
             if(args[array].equalsIgnoreCase("--help")) {
                 System.out.println("Help:\n        --port - Define the port");
                 System.exit(0);
@@ -70,6 +69,18 @@ public class Broker {
         byteBuf.writeInt(Packets.getIDByPacket(packet));
 
         packet.write(byteBuf);
+        writePacketSize(byteBuf);
         channel.writeAndFlush(byteBuf);
+    }
+
+    private static void writePacketSize(ByteBuf byteBuf) {
+        byte[] bytes = new byte[byteBuf.readableBytes()];
+        byteBuf.readBytes(bytes);
+
+        byteBuf.resetReaderIndex();
+        byteBuf.resetWriterIndex();
+
+        byteBuf.writeInt(bytes.length);
+        byteBuf.writeBytes(bytes);
     }
 }
