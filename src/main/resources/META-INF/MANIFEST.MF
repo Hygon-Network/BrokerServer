@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-Main-Class: fr.Hygon.Broker.Broker
+Main-Class: fr.hygon.broker.Broker
 

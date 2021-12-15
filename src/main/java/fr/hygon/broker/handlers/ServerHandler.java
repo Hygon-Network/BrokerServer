@@ -1,25 +1,31 @@
-package fr.Hygon.Broker.handlers;
+package fr.hygon.broker.handlers;
 
+import fr.hygon.broker.packets.PacketListener;
+import fr.hygon.broker.packets.Packets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import fr.Hygon.Broker.packets.Packet;
-import fr.Hygon.Broker.packets.Packets;
-import java.util.UUID;
+import fr.hygon.broker.packets.Packet;
+import java.util.ArrayList;
 
 public class ServerHandler extends ChannelInboundHandlerAdapter {
-    private ByteBuf byteBuffer;
+    private static final ArrayList<ChannelHandlerContext> clients = new ArrayList<>();
 
+    private ByteBuf byteBuffer;
+    private final PacketListener packetListener = new PacketListenerImpl();
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) {
-        byteBuffer = ctx.alloc().buffer(4);
+    public void handlerAdded(ChannelHandlerContext channelHandlerContext) {
+        byteBuffer = channelHandlerContext.alloc().buffer(4);
+        clients.add(channelHandlerContext);
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
         byteBuffer.release();
         byteBuffer = null;
+
+        clients.remove(ctx);
     }
 
     @Override
@@ -35,16 +41,13 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
                 byteBuffer.readBytes(packetBuf);
 
                 int packetID = packetBuf.readInt();
-                Packet packet = Packets.getPacketByID(packetID);
+                Packet packet = Packets.getPacketByID(packetID, packetBuf);
                 if(packet == null) {
                     System.err.println("Received unknown packet with id " + packetID);
                     return;
                 }
 
-                long mostSignificantBits = packetBuf.readLong();
-                long leastSignificantBits = packetBuf.readLong();
-
-                packet.read(ctx, new UUID(mostSignificantBits, leastSignificantBits), packetBuf);
+                packet.handle(packetListener);
             } else {
                 byteBuffer.resetReaderIndex();
                 byteBuffer.resetWriterIndex();
@@ -60,6 +63,9 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
-        ctx.close();
+    }
+
+    public static ArrayList<ChannelHandlerContext> getClients() {
+        return clients;
     }
 }

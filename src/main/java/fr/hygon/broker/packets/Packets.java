@@ -1,9 +1,10 @@
-package fr.Hygon.Broker.packets;
+package fr.hygon.broker.packets;
+
+import io.netty.buffer.ByteBuf;
 
 public enum Packets {
-    REGISTER_CLIENT_PACKET(0, RegisterClientPacket.class),
-    CHANNEL_PACKET(1, ChannelPacket.class),
-    MESSAGE_PACKET(2, MessagePacket.class);
+    VELOCITY_UPDATE_KEY(0, VelocityKeyUpdatePacket.class),
+    SERVER_STATUS_UPDATE(1, ServerStatusPacket.class);
 
     private final int packetID;
     private final Class<? extends Packet> packet;
@@ -21,11 +22,11 @@ public enum Packets {
         return packet;
     }
 
-    public static Packet getPacketByID(int id) {
+    public static Packet getPacketByID(int id, ByteBuf packetContent) {
         for(Packets packets : Packets.values()) {
             if(packets.packetID == id) {
                 try {
-                    return packets.getPacket().getConstructor().newInstance();
+                    return packets.getPacket().getConstructor(new Class[] {ByteBuf.class}).newInstance(packetContent);
                 } catch (Exception exception) {
                     exception.printStackTrace();
                 }

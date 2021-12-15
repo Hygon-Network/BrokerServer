@@ -1,15 +1,18 @@
-package fr.Hygon.Broker;
+package fr.hygon.broker;
 
-import fr.Hygon.Broker.packets.Packet;
-import fr.Hygon.Broker.packets.Packets;
+import fr.hygon.broker.packets.Packet;
+import fr.hygon.broker.packets.Packets;
+import fr.hygon.broker.handlers.ServerHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import fr.Hygon.Broker.handlers.ServerHandler;
 
 import java.net.InetSocketAddress;
 
@@ -67,20 +70,17 @@ public class Broker {
     public static void writePacket(ChannelHandlerContext channel, Packet packet) {
         ByteBuf byteBuf = Unpooled.buffer();
         byteBuf.writeInt(Packets.getIDByPacket(packet));
-
         packet.write(byteBuf);
-        writePacketSize(byteBuf);
-        channel.writeAndFlush(byteBuf);
-    }
 
-    private static void writePacketSize(ByteBuf byteBuf) {
-        byte[] bytes = new byte[byteBuf.readableBytes()];
-        byteBuf.readBytes(bytes);
+        byte[] packetBytes = new byte[byteBuf.readableBytes()];
+        byteBuf.readBytes(packetBytes);
 
         byteBuf.resetReaderIndex();
         byteBuf.resetWriterIndex();
 
-        byteBuf.writeInt(bytes.length);
-        byteBuf.writeBytes(bytes);
+        byteBuf.writeInt(packetBytes.length);
+        byteBuf.writeBytes(packetBytes);
+
+        channel.writeAndFlush(byteBuf);
     }
 }
